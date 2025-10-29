@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Galeria de Gatos + Matrículas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body class="bg-dark text-light">
+    <div class="container py-4">
+      <h1 class="mb-4">Galeria de Gatos — The Cat API</h1>
+
+      <!-- CRUD de Matrículas -->
+      <h2 class="mb-4">Gerenciamento de Matrículas</h2>
+
+      <section class="mb-5">
+        <h3>Inserir Matrícula</h3>
+        <form onsubmit="inserirMatricula(event)">
+          <input type="text" id="novaMatricula" class="form-control mb-2" placeholder="Digite a matrícula">
+          <button type="submit" class="btn btn-success">Inserir</button>
+        </form>
+      </section>
+
+      <section class="mb-5">
+        <h3>Mostrar Matrículas</h3>
+        <button class="btn btn-info mb-3" onclick="mostrarMatriculas()">Exibir Todas</button>
+        <button class="btn btn-warning mb-3" onclick="desativarTodas()">Desativar Todas</button>
+        <div id="listaMatriculas"></div>
+      </section>
+
+      <section class="mb-5">
+        <h3>Excluir Matrícula</h3>
+        <form onsubmit="excluirMatricula(event)">
+          <input type="number" id="idExcluir" class="form-control mb-2" placeholder="Digite o ID da matrícula">
+          <button type="submit" class="btn btn-danger">Excluir</button>
+        </form>
+      </section>
+
+      <!-- Galeria de Gatos -->
+      <h2 class="mb-4 mt-5">Galeria de Gatos</h2>
+
+      <section class="mb-5">
+        <h3>Imagem aleatória</h3>
+        <button class="btn btn-primary mb-3" onclick="carregarAleatoria()">Carregar imagem</button>
+        <div id="aleatoria" class="row"></div>
+      </section>
+
+      <section class="mb-5">
+        <h3>10 imagens aleatórias</h3>
+        <button class="btn btn-success mb-3" onclick="carregarDez()">Carregar 10 imagens</button>
+        <div id="dez" class="row"></div>
+      </section>
+
+      <section class="mb-5">
+        <h3>10 imagens da raça Bengal</h3>
+        <button class="btn btn-warning mb-3" onclick="carregarBengal()">Carregar Bengal</button>
+        <div id="bengal" class="row"></div>
+      </section>
+
+      <footer class="text-center mt-5">
+        Henrique Felippe Mascarello — Fundamentos ao Desenvolvimento Web (Sistemas de Informação)
+      </footer>
+    </div>
+
+    <script>
+      
+      let matriculas = JSON.parse(localStorage.getItem("matriculas")) || [];
+      let matriculaAtiva = localStorage.getItem("matriculaAtiva") || null;
+
+      function salvarLocalStorage() {
+        localStorage.setItem("matriculas", JSON.stringify(matriculas));
+        localStorage.setItem("matriculaAtiva", matriculaAtiva);
+      }
+
+      function proximoIdDisponivel() {
+        let id = 1;
+        while (matriculas.some(m => m.id === id)) {
+          id++;
+        }
+        return id;
+      }
+
+      function inserirMatricula(event) {
+        event.preventDefault();
+        const valor = document.getElementById("novaMatricula").value.trim();
+        if(!valor){
+          alert("Digite uma matrícula válida!");
+          return;
+        }
+        const existe = matriculas.some(m => m.numero === valor);
+        if(existe){
+          alert("Essa matrícula já está cadastrada!");
+          return;
+        }
+        const novoId = proximoIdDisponivel();
+        matriculas.push({id: novoId, numero: valor});
+        salvarLocalStorage();
+        document.getElementById("novaMatricula").value = "";
+        alert("Matrícula inserida com sucesso! ID: " + novoId);
+        mostrarMatriculas();
+      }
+
+      function mostrarMatriculas() {
+        const container = document.getElementById("listaMatriculas");
+        container.innerHTML = "";
+        if(matriculas.length === 0){
+          container.innerHTML = "<p>Nenhuma matrícula cadastrada.</p>";
+          return;
+        }
+        matriculas.forEach(m => {
+          const ativa = (m.numero === matriculaAtiva) ? " (Ativa)" : "";
+          container.innerHTML += `
+            <div class="d-flex justify-content-between align-items-center bg-secondary p-2 mb-2">
+              <span>ID: ${m.id} | Matrícula: ${m.numero}${ativa}</span>
+              <button class="btn btn-sm btn-primary" onclick="ativarMatricula('${m.numero}')">Ativar</button>
+            </div>
+          `;
+        });
+      }
+
+      function excluirMatricula(event) {
+        event.preventDefault();
+        const id = parseInt(document.getElementById("idExcluir").value);
+        const matriculaExcluida = matriculas.find(m => m.id === id);
+        matriculas = matriculas.filter(m => m.id !== id);
+        if(matriculaExcluida && matriculaExcluida.numero === matriculaAtiva){
+          matriculaAtiva = null;
+        }
+    
+        salvarLocalStorage();
+        document.getElementById("idExcluir").value = "";
+        mostrarMatriculas();
+      }
+
+      function ativarMatricula(numero) {
+        matriculaAtiva = numero;
+        salvarLocalStorage();
+        alert("Matrícula " + numero + " agora está ativa!");
+        mostrarMatriculas();
+      }
+
+      function desativarTodas() {
+        matriculaAtiva = null;
+        salvarLocalStorage();
+        alert("Todas as matrículas foram desativadas.");
+        mostrarMatriculas();
+      }
+
+      function temMatriculaAtiva() {
+        return matriculaAtiva !== null;
+      }
+
+      
+      async function carregarAleatoria() {
+        if(!temMatriculaAtiva()){alert("Ative ou crie uma matrícula primeiro!");return;}
+        const url = "https://api.thecatapi.com/v1/images/search";
+        try {
+          const res = await fetch(url);
+          const dados = await res.json();
+          const container = document.getElementById("aleatoria");
+          container.innerHTML = `
+            <div class="col-md-6">
+              <div class="card bg-secondary">
+                <img src="${dados[0].url}" class="card-img-top" alt="Gato aleatório">
+              </div>
+            </div>
+          `;
+        } catch {
+          alert("Erro ao carregar imagem.");
+        }
+      }
+
+      async function carregarDez() {
+        if(!temMatriculaAtiva()){alert("Ative ou crie uma matrícula primeiro!");return;}
+        const url = "https://api.thecatapi.com/v1/images/search?limit=10";
+        try {
+          const res = await fetch(url);
+          const dados = await res.json();
+          const container = document.getElementById("dez");
+          container.innerHTML = "";
+          dados.forEach(gato => {
+            container.innerHTML += `
+              <div class="col-md-4 mb-3">
+                <div class="card bg-secondary">
+                  <img src="${gato.url}" class="card-img-top" alt="Gato aleatório">
+                </div>
+              </div>
+            `;
+          });
+        } catch {
+          alert("Erro ao carregar imagens.");
+        }
+      }
+
+      async function carregarBengal() {
+        if(!temMatriculaAtiva()){alert("Ative ou crie uma matrícula primeiro!");return;}
+        const API_KEY = "SUA_API_KEY";
+        const url = `https://api.thecatapi.com/v1/images/search?limit=10&breed_ids=beng&api_key=${API_KEY}`;
+        try {
+          const res = await fetch(url);
+          const dados = await res.json();
+          const container = document.getElementById("bengal");
+          container.innerHTML = "";
+          dados.forEach(gato => {
+            container.innerHTML += `
+              <div class="col-md-4 mb-3">
+                <div class="card bg-secondary">
+                  <img src="${gato.url}" class="card-img-top" alt="Gato Bengal">
+                </div>
+              </div>
+            `;
+          });
+        } catch {
+          alert("Erro ao carregar imagens Bengal.");
+        }
+      }
+
+      
+      mostrarMatriculas();
+    </script>
+  </body> 
+</html>
